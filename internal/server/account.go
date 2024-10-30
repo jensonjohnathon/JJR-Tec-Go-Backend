@@ -45,3 +45,30 @@ func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
 }
+
+type RegisterRequest struct {
+    Username string `json:"username"`
+    Email string `json:"email"`
+    Password string `json:"password"`
+}
+
+// registerHandler handles the registration of a new user.
+func (s *Server) RegisterHandler(w http.ResponseWriter, r *http.Request) {
+    var req RegisterRequest
+
+    // Parse the JSON request
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
+
+    // Insert the user into the database
+    err := s.db.CreateUser(req.Username, req.Email, req.Password)
+    if err != nil {
+        http.Error(w, "Failed to register user", http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusCreated)
+    w.Write([]byte("User registered successfully"))
+}

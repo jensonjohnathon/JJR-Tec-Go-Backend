@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   app:
     build:
@@ -19,8 +21,11 @@ services:
     depends_on:
       psql_bp:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - blueprint
+
   psql_bp:
     image: postgres:latest
     restart: unless-stopped
@@ -33,7 +38,11 @@ services:
     volumes:
       - psql_volume_bp:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${BLUEPRINT_DB_USERNAME} -d ${BLUEPRINT_DB_DATABASE}'"]
+      test:
+        [
+          "CMD-SHELL",
+          "sh -c 'pg_isready -U ${BLUEPRINT_DB_USERNAME} -d ${BLUEPRINT_DB_DATABASE}'",
+        ]
       interval: 5s
       timeout: 5s
       retries: 3
@@ -41,7 +50,27 @@ services:
     networks:
       - blueprint
 
+  migrate:
+    image: migrate/migrate
+    entrypoint:
+      [
+        "migrate",
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://${BLUEPRINT_DB_USERNAME}:${BLUEPRINT_DB_PASSWORD}@psql_bp:${BLUEPRINT_DB_PORT}/${BLUEPRINT_DB_DATABASE}?sslmode=disable",
+        "up",
+      ]
+    volumes:
+      - "${PWD}/migrations:/migrations" # Ensure migrations folder is mounted correctly
+    depends_on:
+      psql_bp:
+        condition: service_healthy
+    networks:
+      - blueprint
+
 volumes:
   psql_volume_bp:
+
 networks:
   blueprint:

@@ -13,6 +13,19 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+// CreateUser inserts a new user into the database.
+func (s *service) CreateUser(username, email string, password string) error {
+    // This example assumes you have a table named 'users' with columns 'username' and 'password'.
+    query := `INSERT INTO users (username, email, password) VALUES ($1, $2, $3)`
+
+    _, err := s.db.Exec(query, username, email, password)
+    if err != nil {
+        log.Printf("Error inserting user: %v", err)
+        return err
+    }
+    return nil
+}
+
 // Service represents a service that interacts with a database.
 type Service interface {
 	// Health returns a map of health status information.
@@ -22,6 +35,8 @@ type Service interface {
 	// Close terminates the database connection.
 	// It returns an error if the connection cannot be closed.
 	Close() error
+
+	CreateUser(username, email string, password string) error
 }
 
 type service struct {
@@ -67,7 +82,7 @@ func (s *service) Health() map[string]string {
 	if err != nil {
 		stats["status"] = "down"
 		stats["error"] = fmt.Sprintf("db down: %v", err)
-		log.Fatalf(fmt.Sprintf("db down: %v", err)) // Log the error and terminate the program
+		log.Fatalf("db down: %v", err) // Log the error and terminate the program
 		return stats
 	}
 

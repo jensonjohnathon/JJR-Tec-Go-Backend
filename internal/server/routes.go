@@ -17,6 +17,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.HandleFunc("/account", s.accountHandler)
 
+	r.HandleFunc("/register", s.RegisterHandler).Methods(http.MethodPost)
+
 	return r
 }
 
