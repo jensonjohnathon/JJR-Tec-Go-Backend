@@ -15,7 +15,7 @@ type AccountDetails struct {
     Name string `json:"name"`
 }
 
-func (s *Server) HandleCreateAccount(w http.ResponseWriter, r *http.Request) {
+func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
     var details AccountDetails
     if err := json.NewDecoder(r.Body).Decode(&details); err != nil {
         http.Error(w, "Invalid request payload", http.StatusBadRequest)
@@ -26,6 +26,7 @@ func (s *Server) HandleCreateAccount(w http.ResponseWriter, r *http.Request) {
     claims := jwt.MapClaims{
         "name":  details.Name,
         "exp":   time.Now().Add(time.Hour * 72).Unix(), // token expires in 72 hours
+		"iat":   time.Now().Unix(),
     }
 
     // Generate the JWT token

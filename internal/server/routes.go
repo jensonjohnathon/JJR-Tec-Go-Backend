@@ -45,7 +45,7 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) accountHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
-		s.HandleCreateAccount(w, r)
+		s.HandleAccountJwt(w, r)
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
