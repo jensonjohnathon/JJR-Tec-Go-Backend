@@ -190,5 +190,3 @@ Useful:
 docker-compose down -v
 
 docker-compose up --build
-
-docker-compose exec psql_bp psql -U jenson -d blueprint
