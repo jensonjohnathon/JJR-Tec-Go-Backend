@@ -39,7 +39,6 @@ func (s *service) GetUserByUsernameAndPassword(username, password string) (*moda
 	return &user, nil
 }
 
-// Service represents a service that interacts with a database.
 type Service interface {
 	// Health returns a map of health status information.
 	// The keys and values in the map are service-specific.
@@ -49,7 +48,7 @@ type Service interface {
 	// It returns an error if the connection cannot be closed.
 	Close() error
 
-    // Creates a User in the Postgres DBA
+    // Creates a User in the Postgres DB
 	CreateUser(username, email string, password string) error
 	GetUserByUsernameAndPassword(username, password string) (*modals.User, error)
 }
