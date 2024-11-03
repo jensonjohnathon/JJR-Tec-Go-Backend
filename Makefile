@@ -13,6 +13,7 @@ run:
 
 # Create DB container and run migrations
 docker-run:
+	@echo "Starting Docker Compose with build..."
 	@if docker compose up --build 2>/dev/null; then \
 		: ; \
 	else \
