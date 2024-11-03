@@ -12,7 +12,8 @@ import (
 var jwtKey = os.Getenv("JWT_KEY")
 
 type AccountDetails struct {
-    Name string `json:"name"`
+    Username string `json:"username"`
+    Password string `json:"password"`
 }
 
 func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
@@ -22,11 +23,11 @@ func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Define a JWT claim structure
     claims := jwt.MapClaims{
-        "name":  details.Name,
-        "exp":   time.Now().Add(time.Hour * 72).Unix(), // token expires in 72 hours
-		"iat":   time.Now().Unix(),
+        "username":  details.Username,
+        "exp":       time.Now().Add(time.Hour * 72).Unix(), // token expires in 72 hours
+        "iat":       time.Now().Unix(),
+        "role":      "not implemented",  //todo
     }
 
     // Generate the JWT token
@@ -37,7 +38,6 @@ func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Respond with the generated token
     response := map[string]string{
         "token": tokenString,
     }
@@ -52,7 +52,37 @@ type RegisterRequest struct {
     Password string `json:"password"`
 }
 
-// registerHandler handles the registration of a new user.
+func (s *Server) HandleAccountDB(w http.ResponseWriter, r *http.Request) {
+	var details AccountDetails
+	if err := json.NewDecoder(r.Body).Decode(&details); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Check if the user exists in the database
+	user, err := s.db.GetUserByUsernameAndPassword(details.Username, details.Password)
+	if err != nil {
+		http.Error(w, "Error querying database", http.StatusInternalServerError)
+		return
+	}
+	if user == nil {
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		return
+	}
+
+	// Respond with the user's information (excluding password)
+	response := map[string]interface{}{
+		"id":         user.ID,
+		"username":   user.Username,
+		"email":      user.Email,
+		"created_at": user.CreatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+
 func (s *Server) RegisterHandler(w http.ResponseWriter, r *http.Request) {
     var req RegisterRequest
 

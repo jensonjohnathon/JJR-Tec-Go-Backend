@@ -48,6 +48,8 @@ func (s *Server) accountHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		s.HandleAccountJwt(w, r)
+	case http.MethodGet:
+		s.HandleAccountDB(w, r)
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}

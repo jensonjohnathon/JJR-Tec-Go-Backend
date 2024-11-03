@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"jjr-tec-backend/internal/modals"
 	"log"
 	"os"
 	"strconv"
@@ -13,7 +14,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-// CreateUser inserts a new user into the database.
+// CreateUser inserts a new user into Users Table
 func (s *service) CreateUser(username, email string, password string) error {
     // This example assumes you have a table named 'users' with columns 'username' and 'password'.
     query := `INSERT INTO users (username, email, password) VALUES ($1, $2, $3)`
@@ -26,6 +27,18 @@ func (s *service) CreateUser(username, email string, password string) error {
     return nil
 }
 
+func (s *service) GetUserByUsernameAndPassword(username, password string) (*modals.User, error) {
+	var user modals.User
+	query := `SELECT id, username, email, created_at FROM users WHERE username = $1 AND password = $2`
+	err := s.db.QueryRow(query, username, password).Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil // User not found
+	} else if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 // Service represents a service that interacts with a database.
 type Service interface {
 	// Health returns a map of health status information.
@@ -36,7 +49,9 @@ type Service interface {
 	// It returns an error if the connection cannot be closed.
 	Close() error
 
+    // Creates a User in the Postgres DBA
 	CreateUser(username, email string, password string) error
+	GetUserByUsernameAndPassword(username, password string) (*modals.User, error)
 }
 
 type service struct {
