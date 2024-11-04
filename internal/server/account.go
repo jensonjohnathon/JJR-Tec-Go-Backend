@@ -46,43 +46,43 @@ func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(response)
 }
 
+func (s *Server) HandleAccountDB(w http.ResponseWriter, r *http.Request) {
+    var details AccountDetails
+    if err := json.NewDecoder(r.Body).Decode(&details); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
+
+    // Check if the user exists in the database
+    user, err := s.db.GetUserByUsernameAndPassword(details.Username, details.Password)
+    if err != nil {
+        http.Error(w, "Error querying database", http.StatusInternalServerError)
+        return
+    }
+    if user == nil {
+        http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+        return
+    }
+
+    // Respond with the user's information (excluding password)
+    response := map[string]interface{}{
+        "id":         user.ID,
+        "username":   user.Username,
+        "email":      user.Email,
+        "created_at": user.CreatedAt,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
+
 type RegisterRequest struct {
     Username string `json:"username"`
     Email string `json:"email"`
     Password string `json:"password"`
 }
 
-func (s *Server) HandleAccountDB(w http.ResponseWriter, r *http.Request) {
-	var details AccountDetails
-	if err := json.NewDecoder(r.Body).Decode(&details); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
-
-	// Check if the user exists in the database
-	user, err := s.db.GetUserByUsernameAndPassword(details.Username, details.Password)
-	if err != nil {
-		http.Error(w, "Error querying database", http.StatusInternalServerError)
-		return
-	}
-	if user == nil {
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
-		return
-	}
-
-	// Respond with the user's information (excluding password)
-	response := map[string]interface{}{
-		"id":         user.ID,
-		"username":   user.Username,
-		"email":      user.Email,
-		"created_at": user.CreatedAt,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-
+//Takes the RegisterRequest struct params and writes them in the Users Table to register an new User, ID and created_at get filled automaticaly
 func (s *Server) RegisterHandler(w http.ResponseWriter, r *http.Request) {
     var req RegisterRequest
 
@@ -101,4 +101,12 @@ func (s *Server) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
     w.WriteHeader(http.StatusCreated)
     w.Write([]byte("User registered successfully"))
+}
+
+func (s *Server) HandleRoleAddedDB(w http.ResponseWriter, r *http.Request) {
+    //todo
+}
+
+func (s *Server) HandleGetUserRole(w http.ResponseWriter, r *http.Request) {
+    //todo
 }
