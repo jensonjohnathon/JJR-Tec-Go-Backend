@@ -19,7 +19,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 
     r.HandleFunc("/roles", s.rolesHandler)
 
-    r.HandleFunc("/register", s.RegisterHandler).Methods(http.MethodPost)
+    r.HandleFunc("/account_register", s.AccountRegisterHandlerDB).Methods(http.MethodPost)
+
+    r.HandleFunc("/roles_register", s.RolesRegisterHandlerDB).Methods(http.MethodPost)
 
     return r
 }
@@ -60,7 +62,7 @@ func (s *Server) accountHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) rolesHandler(w http.ResponseWriter, r *http.Request) {
     switch r.Method {
     case http.MethodPost:
-        s.HandleRoleAddedDB(w, r)
+        s.HandleRoleAddedToUserDB(w, r)
     case http.MethodGet:
         s.HandleGetUserRole(w, r)
     default:
