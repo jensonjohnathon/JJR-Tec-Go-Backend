@@ -15,13 +15,24 @@ import (
 )
 
 // CreateUser inserts a new user into Users Table
-func (s *service) CreateUser(username, email string, password string) error {
-    // This example assumes you have a table named 'users' with columns 'username' and 'password'.
+func (s *service) CreateUser(username string, email string, password string) error {
     query := `INSERT INTO users (username, email, password) VALUES ($1, $2, $3)`
 
     _, err := s.db.Exec(query, username, email, password)
     if err != nil {
         log.Printf("Error inserting user: %v", err)
+        return err
+    }
+    return nil
+}
+
+// CreateRole inserts a new user into Users Table
+func (s *service) CreateRole(role_name string) error {
+    query := `INSERT INTO roles (role_name) VALUES ($1)`
+
+    _, err := s.db.Exec(query, role_name)
+    if err != nil {
+        log.Printf("Error inserting role: %v", err)
         return err
     }
     return nil
@@ -48,9 +59,12 @@ type Service interface {
 	// It returns an error if the connection cannot be closed.
 	Close() error
 
-    // Creates a User in the Postgres DB
-	CreateUser(username, email string, password string) error
+    // Creates a User in the Postgres DB, Table Users
+	CreateUser(username string, email string, password string) error
 	GetUserByUsernameAndPassword(username, password string) (*modals.User, error)
+
+    // Creates a Role in Postgres DB, Table Roles
+    CreateRole(role_name string) error
 }
 
 type service struct {
