@@ -76,15 +76,15 @@ func (s *Server) HandleAccountDB(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(response)
 }
 
-type RegisterRequest struct {
+type AccountRegisterRequest struct {
     Username string `json:"username"`
     Email string `json:"email"`
     Password string `json:"password"`
 }
 
-//Takes the RegisterRequest struct params and writes them in the Users Table to register an new User, ID and created_at get filled automaticaly
-func (s *Server) RegisterHandler(w http.ResponseWriter, r *http.Request) {
-    var req RegisterRequest
+//Takes the AccountRegisterRequest struct params and writes them in the Users Table to register an new User, ID and created_at get filled automaticaly
+func (s *Server) AccountRegisterHandlerDB(w http.ResponseWriter, r *http.Request) {
+    var req AccountRegisterRequest
 
     // Parse the JSON request
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -103,7 +103,32 @@ func (s *Server) RegisterHandler(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("User registered successfully"))
 }
 
-func (s *Server) HandleRoleAddedDB(w http.ResponseWriter, r *http.Request) {
+type RolesRegisterRequest struct {
+    Role_Name string `json:"role_name"`
+}
+
+//Takes the RolesRegisterRequest struct params and writes them in the Roles Table to register an new Role, ID get's filled automaticaly
+func (s *Server) RolesRegisterHandlerDB(w http.ResponseWriter, r *http.Request) {
+    var req RolesRegisterRequest
+
+    // Parse the JSON request
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
+
+    // Insert the user into the database
+    err := s.db.CreateRole(req.Role_Name)
+    if err != nil {
+        http.Error(w, "Failed to register role", http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusCreated)
+    w.Write([]byte("Role registered successfully"))
+}
+
+func (s *Server) HandleRoleAddedToUserDB(w http.ResponseWriter, r *http.Request) {
     //todo
 }
 
