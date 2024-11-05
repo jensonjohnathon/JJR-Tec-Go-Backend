@@ -133,5 +133,23 @@ func (s *Server) HandleRoleAddedToUserDB(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) HandleGetUserRole(w http.ResponseWriter, r *http.Request) {
-    //todo
+    var details AccountDetails
+    if err := json.NewDecoder(r.Body).Decode(&details); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
+
+    // Check if the user exists in the database
+    roles, err := s.db.GetRolesByUsername(details.Username, details.Password)
+    if err != nil {
+        http.Error(w, "Error querying database", http.StatusInternalServerError)
+        return
+    }
+    if roles == nil {
+        http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(roles)
 }
