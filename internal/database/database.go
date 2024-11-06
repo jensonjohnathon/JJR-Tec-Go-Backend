@@ -82,6 +82,21 @@ func (s *service) GetRolesByUsername(username string, password string) ([]string
     return roles, nil
 }
 
+func (s *service) AssignRoleToUser(username string, role_name string, password string) error {
+    query := `
+        INSERT INTO user_roles (user_id, role_id)
+        SELECT u.id, r.id
+        FROM users u, roles r
+        WHERE u.username = $1 AND r.role_name = $2
+    `
+
+    _, err := s.db.Exec(query, username, role_name)
+    if err != nil {
+        log.Printf("Error assigning role: %v", err)
+        return err
+    }
+    return nil
+}
 
 type Service interface {
     // Health returns a map of health status information.
@@ -99,6 +114,7 @@ type Service interface {
     // Creates a Role in Postgres DB, Table Roles
     CreateRole(role_name string) error
     GetRolesByUsername(username string, password string) ([]string, error)
+    AssignRoleToUser(username string, role_name string, password string) error
 }
 
 type service struct {
