@@ -21,10 +21,14 @@ func (s *Server) RegisterRoutes() http.Handler {
     // Get takes Username and Password -> validates password -> responds with the corresponding row in in Users Table without the password
     r.HandleFunc("/account", s.accountHandler)
 
+    // Post takes Username, Role_Name and Password -> validates password -> responds with Status -> Assigns Role to User
+    // Get takes Username and Password -> validates password -> responds with list of roles that are assigned to the user
     r.HandleFunc("/roles", s.rolesHandler)
 
+    // Takes Username, Email and Pasword and puts them in the Users Table
     r.HandleFunc("/account_register", s.AccountRegisterHandlerDB).Methods(http.MethodPost)
 
+    // Takes a role_name and writes it in the Roles Table
     r.HandleFunc("/roles_register", s.RolesRegisterHandlerDB).Methods(http.MethodPost)
 
     return r
