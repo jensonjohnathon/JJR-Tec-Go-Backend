@@ -128,8 +128,30 @@ func (s *Server) RolesRegisterHandlerDB(w http.ResponseWriter, r *http.Request) 
     w.Write([]byte("Role registered successfully"))
 }
 
+type RolesAssignment struct {
+    Username string `json:"username"`
+    Role_Name string `json:"role_name"`
+    Password string `json:"password"`
+}
+
 func (s *Server) HandleRoleAddedToUserDB(w http.ResponseWriter, r *http.Request) {
-    //todo
+    var req RolesAssignment
+
+    // Parse the JSON request
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
+
+    // Insert the user into the database
+    err := s.db.AssignRoleToUser(req.Username, req.Role_Name, req.Password)
+    if err != nil {
+        http.Error(w, "Failed to assign role", http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusCreated)
+    w.Write([]byte("Role assigned successfully"))
 }
 
 func (s *Server) HandleGetUserRole(w http.ResponseWriter, r *http.Request) {
