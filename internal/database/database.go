@@ -83,33 +83,13 @@ func (s *service) GetRolesByUsername(username string, password string) ([]string
 }
 
 func (s *service) AssignRoleToUser(username string, role_name string, password string) error {
-    // First, check if both user and role exist
-var count int
-    checkQuery := `
-        SELECT COUNT(*) 
-        FROM users u, roles r 
-        WHERE u.username = $1 AND r.role_name = $2
-    `
-    err := s.db.QueryRow(checkQuery, username, role_name).Scan(&count)
-    if err != nil {
-        log.Printf("Error checking user and role existence: %v", err)
-        return err
-    }
-
-    // If count is less than 2, either the user or role doesn't exist
-    if count < 2 {
-        return fmt.Errorf("either the user '%s' or the role '%s' does not exist", username, role_name)
-    }
-
-    // Proceed to insert into user_roles if both exist
-    insertQuery := `
+    query := `
         INSERT INTO user_roles (user_id, role_id)
         SELECT u.id, r.id
         FROM users u, roles r
         WHERE u.username = $1 AND r.role_name = $2
     `
-
-    _, err = s.db.Exec(insertQuery, username, role_name)
+    _, err := s.db.Exec(query, username, role_name)
     if err != nil {
         log.Printf("Error assigning role: %v", err)
         return err
