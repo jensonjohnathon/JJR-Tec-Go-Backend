@@ -18,6 +18,8 @@ type Server struct {
 	db database.Service
 }
 
+var jwtKey = os.Getenv("JWT_KEY")
+
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	NewServer := &Server{

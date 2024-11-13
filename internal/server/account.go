@@ -3,19 +3,22 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
-
-var jwtKey = os.Getenv("JWT_KEY")
 
 type AccountDetails struct {
     Username string `json:"username"`
     Password string `json:"password"`
 }
 
+type TokenResponse struct {
+    AccessToken  string `json:"access_token"`
+    RefreshToken string `json:"refresh_token"`
+}
+
+// HandleAccountJwt generates both an access token and a refresh token for the user
 func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
     var details AccountDetails
     if err := json.NewDecoder(r.Body).Decode(&details); err != nil {
@@ -23,28 +26,92 @@ func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    claims := jwt.MapClaims{
+    // Generate Access Token (short-lived)
+    accessClaims := jwt.MapClaims{
         "username":  details.Username,
-        "exp":       time.Now().Add(time.Hour * 72).Unix(), // token expires in 72 hours
+        "role":      "not implemented",  // TODO: populate the user's role
+        "exp":       time.Now().Add(15 * time.Minute).Unix(), // Access token expires in 15 mins
         "iat":       time.Now().Unix(),
-        "role":      "not implemented",  //todo
     }
-
-    // Generate the JWT token
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    tokenString, err := token.SignedString([]byte(jwtKey)) // replace with a secure secret key
+    accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+    accessTokenString, err := accessToken.SignedString([]byte(jwtKey))
     if err != nil {
-        http.Error(w, "Error generating token", http.StatusInternalServerError)
+        http.Error(w, "Error generating access token", http.StatusInternalServerError)
         return
     }
 
-    response := map[string]string{
-        "token": tokenString,
+    // Generate Refresh Token (long-lived)
+    refreshClaims := jwt.MapClaims{
+        "username": details.Username,
+        "exp":      time.Now().Add(7 * 24 * time.Hour).Unix(), // Refresh token expires in 7 days
+        "iat":      time.Now().Unix(),
+    }
+    refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+    refreshTokenString, err := refreshToken.SignedString([]byte(jwtKey))
+    if err != nil {
+        http.Error(w, "Error generating refresh token", http.StatusInternalServerError)
+        return
+    }
+
+    response := TokenResponse{
+        AccessToken:  accessTokenString,
+        RefreshToken: refreshTokenString,
     }
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
 }
+
+
+func (s *Server) RefreshHandler(w http.ResponseWriter, r *http.Request) {
+    var tokenReq struct {
+        RefreshToken string `json:"refresh_token"`
+    }
+
+    if err := json.NewDecoder(r.Body).Decode(&tokenReq); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
+
+    // Parse and validate the refresh token
+    refreshToken, err := jwt.Parse(tokenReq.RefreshToken, func(token *jwt.Token) (interface{}, error) {
+        return []byte(jwtKey), nil
+    })
+
+    if err != nil || !refreshToken.Valid {
+        http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+        return
+    }
+
+    claims, ok := refreshToken.Claims.(jwt.MapClaims)
+    if !ok || claims["exp"] == nil {
+        http.Error(w, "Invalid refresh token claims", http.StatusUnauthorized)
+        return
+    }
+
+    // Generate a new access token
+    newAccessClaims := jwt.MapClaims{
+        "username": claims["username"],
+        "role":     claims["role"],
+        "exp":      time.Now().Add(15 * time.Minute).Unix(),
+        "iat":      time.Now().Unix(),
+    }
+
+    newAccessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessClaims)
+    newAccessTokenString, err := newAccessToken.SignedString([]byte(jwtKey))
+    if err != nil {
+        http.Error(w, "Error generating new access token", http.StatusInternalServerError)
+        return
+    }
+
+    response := map[string]string{
+        "access_token": newAccessTokenString,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
+
 
 func (s *Server) HandleAccountDB(w http.ResponseWriter, r *http.Request) {
     var details AccountDetails
