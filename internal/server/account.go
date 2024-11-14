@@ -26,11 +26,22 @@ func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Check if the user exists in the database
+    roles, err := s.db.GetRolesByUsername(details.Username, details.Password)
+    if err != nil {
+        http.Error(w, "Error querying database", http.StatusInternalServerError)
+        return
+    }
+    if roles == nil {
+        http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+        return
+    }
+
     // Generate Access Token (short-lived)
     accessClaims := jwt.MapClaims{
         "username":  details.Username,
-        "role":      "not implemented",  // TODO: populate the user's role
-        "exp":       time.Now().Add(15 * time.Minute).Unix(), // Access token expires in 15 mins
+        "role":      roles, 
+        "exp":       time.Now().Add(1 * time.Minute).Unix(), // Access token expires in 1 min
         "iat":       time.Now().Unix(),
     }
     accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
