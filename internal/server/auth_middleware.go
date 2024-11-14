@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -20,6 +21,7 @@ func (s *Server) AuthMiddleware(next http.Handler) http.Handler {
         // Remove "Bearer " prefix if it exists
         tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 
+        // Parse the JWT token
         token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
             return []byte(jwtKey), nil
         })
@@ -29,7 +31,26 @@ func (s *Server) AuthMiddleware(next http.Handler) http.Handler {
             return
         }
 
-        // Token is valid; proceed with the request
+        // Extract claims from the token
+        claims, ok := token.Claims.(jwt.MapClaims)
+        if !ok {
+            http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+            return
+        }
+
+        // Check if the token has expired
+        exp, expOk := claims["exp"].(float64)
+        if !expOk {
+            http.Error(w, "Invalid expiration claim", http.StatusUnauthorized)
+            return
+        }
+
+        if time.Now().Unix() > int64(exp) {
+            http.Error(w, "Token has expired", http.StatusUnauthorized)
+            return
+        }
+
+        // Token is valid and not expired; proceed with the request
         next.ServeHTTP(w, r)
     })
 }
