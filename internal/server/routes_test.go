@@ -20,7 +20,7 @@ func TestHandler(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected status OK; got %v", resp.Status)
 	}
-	expected := "{\"message\":\"Hello World\"}"
+	expected := "{\"message\":\"JJR Backend\"}"
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("error reading response body. Err: %v", err)

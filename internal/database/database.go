@@ -38,7 +38,7 @@ func (s *service) CreateRole(role_name string) error {
     return nil
 }
 
-func (s *service) GetUserByUsernameAndPassword(username string, password string) (*modals.User, error) {
+func (s *service) GetUserByUsername(username string) (*modals.User, error) {
     var user modals.User
     query := `SELECT id, username, email, created_at FROM users WHERE username = $1`
     err := s.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt)
@@ -50,7 +50,7 @@ func (s *service) GetUserByUsernameAndPassword(username string, password string)
     return &user, nil
 }
 
-func (s *service) GetRolesByUsername(username string, password string) ([]string, error) {
+func (s *service) GetRolesByUsername(username string) ([]string, error) {
     var roles []string
     query := `
         SELECT r.role_name
@@ -82,7 +82,7 @@ func (s *service) GetRolesByUsername(username string, password string) ([]string
     return roles, nil
 }
 
-func (s *service) AssignRoleToUser(username string, role_name string, password string) error {
+func (s *service) AssignRoleToUser(username string, role_name string) error {
     query := `
         INSERT INTO user_roles (user_id, role_id)
         SELECT u.id, r.id
@@ -108,12 +108,12 @@ type Service interface {
 
     // Creates a User in the Postgres DB, Table Users
     CreateUser(username string, email string, password string) error
-    GetUserByUsernameAndPassword(username string, password string) (*modals.User, error)
+    GetUserByUsername(username string) (*modals.User, error)
 
     // Creates a Role in Postgres DB, Table Roles
     CreateRole(role_name string) error
-    GetRolesByUsername(username string, password string) ([]string, error)
-    AssignRoleToUser(username string, role_name string, password string) error
+    GetRolesByUsername(username string) ([]string, error)
+    AssignRoleToUser(username string, role_name string) error
 }
 
 type service struct {

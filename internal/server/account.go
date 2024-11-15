@@ -3,64 +3,156 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtKey = os.Getenv("JWT_KEY")
-
-type AccountDetails struct {
+type UsernameStruct struct {
     Username string `json:"username"`
-    Password string `json:"password"`
 }
 
+type TokenResponse struct {
+    AccessToken  string `json:"access_token"`
+    RefreshToken string `json:"refresh_token"`
+}
+
+// HandleAccountJwt generates both an access token and a refresh token for the user
 func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
-    var details AccountDetails
-    if err := json.NewDecoder(r.Body).Decode(&details); err != nil {
+    var usernameStruct UsernameStruct
+    if err := json.NewDecoder(r.Body).Decode(&usernameStruct); err != nil {
         http.Error(w, "Invalid request payload", http.StatusBadRequest)
         return
     }
 
-    claims := jwt.MapClaims{
-        "username":  details.Username,
-        "exp":       time.Now().Add(time.Hour * 72).Unix(), // token expires in 72 hours
-        "iat":       time.Now().Unix(),
-        "role":      "not implemented",  //todo
-    }
-
-    // Generate the JWT token
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    tokenString, err := token.SignedString([]byte(jwtKey)) // replace with a secure secret key
+    // Check if the user exists in the database
+    roles, err := s.db.GetRolesByUsername(usernameStruct.Username)
     if err != nil {
-        http.Error(w, "Error generating token", http.StatusInternalServerError)
+        http.Error(w, "Error querying database", http.StatusInternalServerError)
+        return
+    }
+    if roles == nil {
+        http.Error(w, "Invalid username", http.StatusUnauthorized)
         return
     }
 
-    response := map[string]string{
-        "token": tokenString,
+    // Generate Access Token (short-lived)
+    accessClaims := jwt.MapClaims{
+        "username":  usernameStruct.Username,
+        "role":      roles, 
+        "exp":       time.Now().Add(1 * time.Minute).Unix(), // Access token expires in 1 min
+        "iat":       time.Now().Unix(),
+    }
+    accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+    accessTokenString, err := accessToken.SignedString([]byte(jwtKey))
+    if err != nil {
+        http.Error(w, "Error generating access token", http.StatusInternalServerError)
+        return
+    }
+
+    // Generate Refresh Token (long-lived)
+    refreshClaims := jwt.MapClaims{
+        "username": usernameStruct.Username,
+        "exp":      time.Now().Add(7 * 24 * time.Hour).Unix(), // Refresh token expires in 7 days
+        "iat":      time.Now().Unix(),
+    }
+    refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+    refreshTokenString, err := refreshToken.SignedString([]byte(jwtKey))
+    if err != nil {
+        http.Error(w, "Error generating refresh token", http.StatusInternalServerError)
+        return
+    }
+
+    response := TokenResponse{
+        AccessToken:  accessTokenString,
+        RefreshToken: refreshTokenString,
     }
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
 }
 
+
+func (s *Server) RefreshHandler(w http.ResponseWriter, r *http.Request) {
+    var tokenReq struct {
+        RefreshToken string `json:"refresh_token"`
+    }
+
+    // Decode the incoming request to get the refresh token
+    if err := json.NewDecoder(r.Body).Decode(&tokenReq); err != nil {
+        http.Error(w, "Invalid request payload", http.StatusBadRequest)
+        return
+    }
+
+    // Parse the JWT token
+    token, err := jwt.Parse(tokenReq.RefreshToken, func(token *jwt.Token) (interface{}, error) {
+        return []byte(jwtKey), nil
+    })
+    if err != nil || !token.Valid {
+        http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+        return
+    }
+
+    // Extract claims from the token and ensure they are in the correct format
+    claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok || claims["username"] == nil {
+        http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+        return
+    }
+
+    // Extract the username from claims
+    username := claims["username"].(string)
+
+    // Check if the user exists in the database
+    roles, err := s.db.GetRolesByUsername(username)
+    if err != nil {
+        http.Error(w, "Error querying database", http.StatusInternalServerError)
+        return
+    }
+    if roles == nil {
+        http.Error(w, "Invalid username", http.StatusUnauthorized)
+        return
+    }
+
+    // Generate Access Token (short-lived)
+    accessClaims := jwt.MapClaims{
+        "username":  username,
+        "role":      roles, 
+        "exp":       time.Now().Add(1 * time.Minute).Unix(), // Access token expires in 1 min
+        "iat":       time.Now().Unix(),
+    }
+
+    accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+    accessTokenString, err := accessToken.SignedString([]byte(jwtKey))
+    if err != nil {
+        http.Error(w, "Error generating access token", http.StatusInternalServerError)
+        return
+    }
+
+    response := map[string]string{
+        "token": accessTokenString,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
+
+
 func (s *Server) HandleAccountDB(w http.ResponseWriter, r *http.Request) {
-    var details AccountDetails
-    if err := json.NewDecoder(r.Body).Decode(&details); err != nil {
+    var usernameStruct UsernameStruct
+    if err := json.NewDecoder(r.Body).Decode(&usernameStruct); err != nil {
         http.Error(w, "Invalid request payload", http.StatusBadRequest)
         return
     }
 
     // Check if the user exists in the database
-    user, err := s.db.GetUserByUsernameAndPassword(details.Username, details.Password)
+    user, err := s.db.GetUserByUsername(usernameStruct.Username)
     if err != nil {
         http.Error(w, "Error querying database", http.StatusInternalServerError)
         return
     }
     if user == nil {
-        http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+        http.Error(w, "Invalid username", http.StatusUnauthorized)
         return
     }
 
@@ -131,7 +223,6 @@ func (s *Server) RolesRegisterHandlerDB(w http.ResponseWriter, r *http.Request) 
 type RolesAssignment struct {
     Username string `json:"username"`
     Role_Name string `json:"role_name"`
-    Password string `json:"password"`
 }
 
 func (s *Server) HandleRoleAddedToUserDB(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +235,7 @@ func (s *Server) HandleRoleAddedToUserDB(w http.ResponseWriter, r *http.Request)
     }
 
     // Insert the user into the database
-    err := s.db.AssignRoleToUser(req.Username, req.Role_Name, req.Password)
+    err := s.db.AssignRoleToUser(req.Username, req.Role_Name)
     if err != nil {
         http.Error(w, "Failed to assign role", http.StatusInternalServerError)
         return
@@ -155,20 +246,20 @@ func (s *Server) HandleRoleAddedToUserDB(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) HandleGetUserRole(w http.ResponseWriter, r *http.Request) {
-    var details AccountDetails
-    if err := json.NewDecoder(r.Body).Decode(&details); err != nil {
+    var usernameStruct UsernameStruct
+    if err := json.NewDecoder(r.Body).Decode(&usernameStruct); err != nil {
         http.Error(w, "Invalid request payload", http.StatusBadRequest)
         return
     }
 
     // Check if the user exists in the database
-    roles, err := s.db.GetRolesByUsername(details.Username, details.Password)
+    roles, err := s.db.GetRolesByUsername(usernameStruct.Username)
     if err != nil {
         http.Error(w, "Error querying database", http.StatusInternalServerError)
         return
     }
     if roles == nil {
-        http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+        http.Error(w, "Invalid username", http.StatusUnauthorized)
         return
     }
 

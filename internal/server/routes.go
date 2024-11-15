@@ -21,14 +21,31 @@ func (s *Server) RegisterRoutes() http.Handler {
     // Get takes Username and Password -> validates password -> responds with the corresponding row in in Users Table without the password
     r.HandleFunc("/account", s.accountHandler)
 
-    r.HandleFunc("/roles", s.rolesHandler)
+    // For JWT Refresh Tokens
+    r.HandleFunc("/refresh", s.RefreshHandler)
 
-    r.HandleFunc("/account_register", s.AccountRegisterHandlerDB).Methods(http.MethodPost)
-
-    r.HandleFunc("/roles_register", s.RolesRegisterHandlerDB).Methods(http.MethodPost)
+    // Define protected routes with middleware
+    s.registerProtectedRoutes(r)
 
     return r
 }
+
+// registerProtectedRoutes sets up the protected routes under "/protected" with authentication middleware applied
+func (s *Server) registerProtectedRoutes(r *mux.Router) {
+    protected := r.PathPrefix("/protected").Subrouter()
+    protected.Use(s.AuthMiddleware) // Apply authentication middleware to all /protected routes
+
+    // POST takes username, email and password and registers a User with that data
+    protected.HandleFunc("/account_register", s.AccountRegisterHandlerDB).Methods(http.MethodPost)
+
+    // Post takes Username, Role_Name and Password -> validates password -> responds with Status -> Assigns Role to User
+    // Get takes Username and Password -> validates password -> responds with list of roles that are assigned to the user
+    protected.HandleFunc("/roles", s.rolesHandler)
+
+    // Takes a role_name and writes it in the Roles Table
+    protected.HandleFunc("/roles_register", s.RolesRegisterHandlerDB).Methods(http.MethodPost)
+}
+
 
 func (s *Server) defaultRouteHandler(w http.ResponseWriter, r *http.Request) {
     resp := make(map[string]string)
