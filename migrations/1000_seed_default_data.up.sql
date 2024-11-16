@@ -1,13 +1,15 @@
 -- Make sure to update this password manually or in migrations if it changes
 
-/* encrypted version
-INSERT INTO users (username, email, password)
-VALUES ('admin', 'admin@example.com', crypt('DefaultAdminPassword', gen_salt('bf')))
-ON CONFLICT DO NOTHING; */
+-- Enable pgcrypto extension for password encryption
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 INSERT INTO users (username, email, password)
-VALUES ('admin', 'admin@example.com', 'DefaultAdminPassword')
+VALUES ('admin', 'admin@example.com', crypt('DefaultAdminPassword', gen_salt('bf')))
 ON CONFLICT DO NOTHING;
+
+/* INSERT INTO users (username, email, password)
+VALUES ('admin', 'admin@example.com', 'DefaultAdminPassword')
+ON CONFLICT DO NOTHING; */
 
 -- Assign admin role to admin user
 INSERT INTO user_roles (user_id, role_id)

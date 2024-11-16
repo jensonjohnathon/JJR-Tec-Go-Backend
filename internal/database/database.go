@@ -14,9 +14,35 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+
+func (s *service) ValidateUserPassword(username string, password string) (bool, error) {
+    query := `
+        SELECT 
+            CASE 
+                WHEN password = crypt($1, password) THEN true
+                ELSE false
+            END AS is_valid
+        FROM users
+        WHERE username = $2;
+    `
+    var isValid bool
+    err := s.db.QueryRow(query, password, username).Scan(&isValid)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return false, nil // User not found
+        }
+        return false, err // Other errors
+    }
+    return isValid, nil
+}
+
+
 // CreateUser inserts a new user into Users Table
 func (s *service) CreateUser(username string, email string, password string) error {
-    query := `INSERT INTO users (username, email, password) VALUES ($1, $2, $3)`
+    query := `
+    INSERT INTO users (username, email, password)
+    VALUES ($1, $2, crypt($3, gen_salt('bf')))
+    `
 
     _, err := s.db.Exec(query, username, email, password)
     if err != nil {
@@ -109,6 +135,7 @@ type Service interface {
     // Creates a User in the Postgres DB, Table Users
     CreateUser(username string, email string, password string) error
     GetUserByUsername(username string) (*modals.User, error)
+    ValidateUserPassword(username string, password string) (bool, error)
 
     // Creates a Role in Postgres DB, Table Roles
     CreateRole(role_name string) error

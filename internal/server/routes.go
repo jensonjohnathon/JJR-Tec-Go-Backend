@@ -14,12 +14,9 @@ func (s *Server) RegisterRoutes() http.Handler {
     // Just a default route with a welcome message (Get only)
     r.HandleFunc("/", s.defaultRouteHandler)
 
-    // Responds with some data about the application like open connections and such (Get only)
-    r.HandleFunc("/health", s.healthHandler)
-
-    // Post takes Username and Password -> validates password -> responds with a JWT token that holds basic jwt values + role of user and username
-    // Get takes Username and Password -> validates password -> responds with the corresponding row in in Users Table without the password
-    r.HandleFunc("/account", s.accountHandler)
+    // takes Username and Password -> validates password -> responds with a JWT token that holds basic jwt values + role of user and username
+    // Protected by Password check
+    r.HandleFunc("/account", s.accountHandler).Methods(http.MethodPost)
 
     // For JWT Refresh Tokens
     r.HandleFunc("/refresh", s.RefreshHandler)
@@ -38,12 +35,18 @@ func (s *Server) registerProtectedRoutes(r *mux.Router) {
     // POST takes username, email and password and registers a User with that data
     protected.HandleFunc("/account_register", s.AccountRegisterHandlerDB).Methods(http.MethodPost)
 
+    // takes Username and Password -> validates password -> responds with the corresponding row in in Users Table without the password
+    protected.HandleFunc("/account", s.accountHandler).Methods(http.MethodGet)
+
     // Post takes Username, Role_Name and Password -> validates password -> responds with Status -> Assigns Role to User
     // Get takes Username and Password -> validates password -> responds with list of roles that are assigned to the user
     protected.HandleFunc("/roles", s.rolesHandler)
 
     // Takes a role_name and writes it in the Roles Table
     protected.HandleFunc("/roles_register", s.RolesRegisterHandlerDB).Methods(http.MethodPost)
+
+    // Responds with some data about the application like open connections and such (Get only)
+    protected.HandleFunc("/health", s.healthHandler)
 }
 
 

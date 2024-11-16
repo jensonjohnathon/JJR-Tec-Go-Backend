@@ -12,6 +12,11 @@ type UsernameStruct struct {
     Username string `json:"username"`
 }
 
+type AccountStruct struct {
+    Username string `json:"username"`
+    Password string `json:"password"`
+}
+
 type TokenResponse struct {
     AccessToken  string `json:"access_token"`
     RefreshToken string `json:"refresh_token"`
@@ -19,14 +24,24 @@ type TokenResponse struct {
 
 // HandleAccountJwt generates both an access token and a refresh token for the user
 func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
-    var usernameStruct UsernameStruct
-    if err := json.NewDecoder(r.Body).Decode(&usernameStruct); err != nil {
+    var account AccountStruct
+    if err := json.NewDecoder(r.Body).Decode(&account); err != nil {
         http.Error(w, "Invalid request payload", http.StatusBadRequest)
         return
     }
 
+    // Check if the user exists and the password is correct
+    isValid, err := s.db.ValidateUserPassword(account.Username, account.Password)
+    if err != nil {
+        http.Error(w, "Error validating password", http.StatusInternalServerError)
+    }
+    if !isValid {
+        http.Error(w, "Invalid password!", http.StatusUnauthorized)
+        return
+    }
+
     // Check if the user exists in the database
-    roles, err := s.db.GetRolesByUsername(usernameStruct.Username)
+    roles, err := s.db.GetRolesByUsername(account.Username)
     if err != nil {
         http.Error(w, "Error querying database", http.StatusInternalServerError)
         return
@@ -38,7 +53,7 @@ func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
 
     // Generate Access Token (short-lived)
     accessClaims := jwt.MapClaims{
-        "username":  usernameStruct.Username,
+        "username":  account.Username,
         "role":      roles, 
         "exp":       time.Now().Add(1 * time.Minute).Unix(), // Access token expires in 1 min
         "iat":       time.Now().Unix(),
@@ -52,8 +67,8 @@ func (s *Server) HandleAccountJwt(w http.ResponseWriter, r *http.Request) {
 
     // Generate Refresh Token (long-lived)
     refreshClaims := jwt.MapClaims{
-        "username": usernameStruct.Username,
-        "exp":      time.Now().Add(7 * 24 * time.Hour).Unix(), // Refresh token expires in 7 days
+        "username": account.Username,
+        "exp":      time.Now().Add(6 * 24 * time.Hour).Unix(), // Refresh token expires in 7 days
         "iat":      time.Now().Unix(),
     }
     refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
