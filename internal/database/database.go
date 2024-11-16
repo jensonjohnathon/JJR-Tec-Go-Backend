@@ -41,7 +41,7 @@ func (s *service) ValidateUserPassword(username string, password string) (bool, 
 func (s *service) CreateUser(username string, email string, password string) error {
     query := `
     INSERT INTO users (username, email, password)
-    VALUES ($1, $2, crypt($3, gen_salt('bf')))
+    VALUES ($1, $2, crypt($3, gen_salt('bf', 12)))
     `
 
     _, err := s.db.Exec(query, username, email, password)

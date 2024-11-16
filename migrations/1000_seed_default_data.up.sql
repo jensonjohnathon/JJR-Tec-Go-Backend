@@ -3,8 +3,9 @@
 -- Enable pgcrypto extension for password encryption
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+
 INSERT INTO users (username, email, password)
-VALUES ('admin', 'admin@example.com', crypt('DefaultAdminPassword', gen_salt('bf')))
+VALUES ('admin', 'admin@example.com', crypt('DefaultAdminPassword', gen_salt('bf', 12)))
 ON CONFLICT DO NOTHING;
 
 /* INSERT INTO users (username, email, password)
