@@ -24,7 +24,7 @@ func (s *Server) RegisterRoutes() http.Handler {
     // Define protected routes with middleware
     s.registerProtectedRoutes(r)
 
-    return r
+    return s.CORS(r)
 }
 
 // registerProtectedRoutes sets up the protected routes under "/protected" with authentication middleware applied
@@ -49,6 +49,22 @@ func (s *Server) registerProtectedRoutes(r *mux.Router) {
     protected.HandleFunc("/health", s.healthHandler)
 }
 
+func (s *Server) CORS(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Set CORS headers
+        w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins
+        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+        // Handle preflight requests
+        if r.Method == http.MethodOptions {
+            w.WriteHeader(http.StatusNoContent) // No content for OPTIONS requests
+            return
+        }
+
+        next.ServeHTTP(w, r)
+    })
+}
 
 func (s *Server) defaultRouteHandler(w http.ResponseWriter, r *http.Request) {
     resp := make(map[string]string)
