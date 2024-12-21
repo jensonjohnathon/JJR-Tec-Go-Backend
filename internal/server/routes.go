@@ -17,6 +17,8 @@ func (s *Server) RegisterRoutes() http.Handler {
     // takes Username and Password -> validates password -> responds with a JWT token that holds basic jwt values + role of user and username
     // Protected by Password check
     r.HandleFunc("/account", s.accountHandler).Methods(http.MethodPost)
+    // POST takes username, email and password and registers a User with that data
+    r.HandleFunc("/account_register", s.AccountRegisterHandlerDB).Methods(http.MethodPost)
 
     // For JWT Refresh Tokens
     r.HandleFunc("/refresh", s.RefreshHandler)
@@ -31,9 +33,6 @@ func (s *Server) RegisterRoutes() http.Handler {
 func (s *Server) registerProtectedRoutes(r *mux.Router) {
     protected := r.PathPrefix("/protected").Subrouter()
     protected.Use(s.AuthMiddleware) // Apply authentication middleware to all /protected routes
-
-    // POST takes username, email and password and registers a User with that data
-    protected.HandleFunc("/account_register", s.AccountRegisterHandlerDB).Methods(http.MethodPost)
 
     // takes Username and Password -> validates password -> responds with the corresponding row in in Users Table without the password
     protected.HandleFunc("/account", s.accountHandler).Methods(http.MethodGet)
